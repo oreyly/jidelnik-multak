@@ -1,18 +1,21 @@
+from datetime import datetime
 import fdb 
 from fdb import fbcore
 import pandas as pd
 
-def Vsechno(i = 10):
-    kurzor.execute("select rdb$field_name from rdb$relation_fields where rdb$relation_name='TFIRMA_TELEVIZE'")
+def Vsechno(i = 10, kde="TFIRMA_TELEVIZE"):
+    kurzor.execute(f"select rdb$field_name from rdb$relation_fields where rdb$relation_name='{kde}'")
 
     zahlavi = [str(nazev)[2:-3].strip() for nazev in kurzor.fetchall()]
     co = ", ".join(zahlavi)
+    print(zahlavi)
     #zahlavi = ["FIRMA_NR", "LFD_JIDELNA"]
-    kurzor.execute(f"SELECT {co} FROM TFIRMA_TELEVIZE")
+    print(co)
+    kurzor.execute(f"SELECT {co} FROM {kde}")
 
     tabulka = pd.DataFrame(kurzor.fetchall()[:])
     tabulka.columns = zahlavi
-    tabulka.to_excel("tab3.xlsx")
+    tabulka.to_excel("tab5.xlsx")
 
     print(tabulka)
     
@@ -26,7 +29,15 @@ pripojeni:fbcore.Connection = fdb.connect(
 
 kurzor:fbcore.Cursor = pripojeni.cursor()
 
-kurzor.execute("SELECT * from JIDELNA_JIDELAK_VYPIS_DW(?,?,?,?,?,?,?)",("18.5.2022",1,4,1,402,0,"NOW"))
+#Vsechno()
+
+kurzor.execute("SELECT * from JIDELNA_JIDELAK_VYPIS_DW(?,?,?,?,?,?,?)",(datetime.today(),1,3,1,402,0,"NOW"))
+#kurzor.execute("SELECT * from TJidelak")
+
+data:list = kurzor.fetchall()
+print("\n".join(["->".join([str(d) for d in dato]) for dato in data]))
+#Vsechno(kde="TJidelak")
+exit()
 
 for cislo in [vec[0] for vec in kurzor.fetchall()]:
     print(cislo)

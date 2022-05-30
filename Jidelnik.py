@@ -1,15 +1,36 @@
 from __future__ import annotations
 from datetime import datetime
-from doctest import NORMALIZE_WHITESPACE
-from random import randint
 from tkinter import *
 import tkinter
 from PIL import ImageTk,Image
+from more_itertools import padded
+from sklearn.feature_selection import SelectFdr
 from FramSVecma import FramSVecma, DataJidla
 
-class Jidelnik():    
-    def __init__(self, nazev, logo, radky, sloupce, ban, jidla:list[DataJidla]):
-        self.VytvorOknoJidelniku(nazev, logo, radky, sloupce, ban, jidla)
+class DataJidelniku():
+    nazev:str
+    logo: str
+    radky: int
+    sloupce: int
+    ban: bool
+    banObr: str
+    ceny: bool
+    alerg: bool
+    
+    def  __init__(self, data:list):
+        self.nazev = data[0]
+        self.logo = data[1]
+        self.sloupce, self.radky = [int(x) for x in data[2].split("x")]
+        self.ban = data[3]
+        self.banObr = data[4]
+        self.ceny = data[5] == 'A'
+        self.alerg = data[6] == 'A'
+
+class Jidelnik():
+    padd: int = 2
+    
+    def __init__(self, data:DataJidelniku, jidla:list[DataJidla]):
+        self.VytvorOknoJidelniku(data, jidla)
 
     def NastavSirky(self):         
         if(self.mainWindow.winfo_height() != self.poslVys or self.mainWindow.winfo_width() != self.poslSir):
@@ -18,7 +39,9 @@ class Jidelnik():
 
             self.zahlaviFram["width"] = self.poslSir
             self.zahlaviFram["height"] = self.poslVys * 0.08
-            self.logoU = ImageTk.PhotoImage(self.logoO.resize((int(int(self.zahlaviFram["height"]) / self.logoO.height * self.logoO.width)-4, int(self.zahlaviFram["height"])-4)))
+            
+            self.logoU = ImageTk.PhotoImage(self.logoO.resize((int(int(self.zahlaviFram["height"]) / self.logoO.height * self.logoO.width)-4, int(self.zahlaviFram["height"])-20)))
+            
             self.zahlaviL.create_image(0,0,image=self.logoU, anchor=NW)
             
             self.zahlaviS["font"]=("Arial",self.zahlaviFram["height"]//4//4*3)
@@ -54,7 +77,7 @@ class Jidelnik():
         return "#%02x%02x%02x" % rgb
 
     def VytvorBanner(self, okno):        
-        self.obr = Image.open("img/102843.jpeg")
+        self.obr = Image.open("pokus.jpg")
         
         can = Canvas(okno, bg="green", width=50, height=100, highlightthickness=0)
         
@@ -66,22 +89,24 @@ class Jidelnik():
     def Full(self, event:tkinter.Event):
         self.mainWindow.attributes("-fullscreen", not self.mainWindow.wm_attributes("-fullscreen"))
     
-    def VytvorOknoJidelniku(self, nazev, logo, radky, sloupce, ban: bool, jidla:list[DataJidla]):
+    def VytvorOknoJidelniku(self, data: DataJidelniku, jidla:list[DataJidla]):
+        FramSVecma.PripravDefObr("./img/defObr.svg", data.alerg, data.ceny, self.padd)
+        
         self.poslVys = 0
         self.poslSir = 0
         
-        self.sloupce = sloupce
-        self.radky = radky
+        self.sloupce = data.sloupce
+        self.radky = data.radky
         
         self.framy:list[list[FramSVecma]] = []
         
         self.mainWindow = Tk()
-        self.mainWindow.title(nazev)
+        self.mainWindow.title(data.nazev)
         self.mainWindow["bg"]="black"
         self.mainWindow.geometry("1600x900")
         
         self.zahlaviFram = Frame(self.mainWindow, width=100, height=10, bg="green")
-        self.zahlaviFram.grid(row=0, column=0, columnspan=sloupce + (1 if ban else 0))
+        self.zahlaviFram.grid(row=0, column=0, columnspan=data.sloupce + (1 if data.ban else 0))
         self.zahlaviFram.pack_propagate(False)
         
         
@@ -89,7 +114,7 @@ class Jidelnik():
         self.zahlaviLFram.pack(fill=BOTH, expand=True, side=LEFT)
         self.zahlaviLFram.pack_propagate(False)
         
-        self.logoO = Image.open(logo)
+        self.logoO = Image.open(data.logo)
         self.zahlaviL = Canvas(self.zahlaviLFram, bg="black", highlightthickness=0)
         self.zahlaviL.pack(fill=BOTH, expand=True, side=LEFT, padx=10, pady=10)
         
@@ -98,7 +123,7 @@ class Jidelnik():
         self.zahlaviSFram.pack(fill=BOTH, expand=True, side=LEFT)
         self.zahlaviSFram.pack_propagate(False)
         
-        self.zahlaviS = Label(self.zahlaviSFram, text=datetime.now().strftime("%d. %m. %Y - %H:%M:%S"), bg="black", fg="white", highlightthickness=0)
+        self.zahlaviS = Label(self.zahlaviSFram, text=datetime.now().strftime("%d. %m. %Y - %H:%M"), bg="black", fg="white", highlightthickness=0)
         self.zahlaviS.pack(fill=BOTH, expand=True, side=LEFT)
         
         
@@ -106,24 +131,24 @@ class Jidelnik():
         self.zahlaviPFram.pack(fill=BOTH, expand=True, side=LEFT)
         self.zahlaviPFram.pack_propagate(False)
         
-        self.zahlaviP = Label(self.zahlaviPFram, text=nazev, bg="black", fg="white", highlightthickness=0, anchor=E)
+        self.zahlaviP = Label(self.zahlaviPFram, text=data.nazev, bg="black", fg="white", highlightthickness=0, anchor=E)
         self.zahlaviP.pack(fill=BOTH, expand=True, side=LEFT)
         
-        for radek in range(radky):
+        for radek in range(data.radky):
             self.framy.append([])
-            for sloupec in range(sloupce):                
-                fr = Frame(self.mainWindow, bg="black", width=30, height=30, highlightthickness=1, highlightbackground="white", padx=2, pady=2)
+            for sloupec in range(data.sloupce):                
+                fr = Frame(self.mainWindow, bg="black", width=30, height=30, highlightthickness=0, highlightbackground="white", padx=Jidelnik.padd, pady=Jidelnik.padd)
                 fr.grid(row=(radek + 1),column=sloupec) #+1 Kvůli nadpisu
                 fr.pack_propagate(False)
                 
-                if(radek*sloupce+sloupec<len(jidla)):
-                    self.framy[radek].append(FramSVecma(self.mainWindow, fr, jidla[radek*sloupce+sloupec]))
+                if(radek*data.sloupce+sloupec<len(jidla)):
+                    self.framy[radek].append(FramSVecma(self.mainWindow, fr, jidla[radek*data.sloupce+sloupec]))
                 else:
                     self.framy[radek].append(FramSVecma(self.mainWindow, fr))
             
-        if(ban):
+        if(data.ban):
             self.baner = self.VytvorBanner(self.mainWindow)
-            self.baner.grid(row=1,column=sloupce,rowspan=radky)
+            self.baner.grid(row=1,column=data.sloupce,rowspan=data.radky)
         else:
             self.baner = None
             
